@@ -2,7 +2,7 @@
  * @Author: lenomirei lenomirei@163.com
  * @Date: 2025-09-22 11:14:12
  * @LastEditors: lenomirei lenomirei@163.com
- * @LastEditTime: 2025-09-22 15:41:56
+ * @LastEditTime: 2025-09-22 19:16:21
  * @FilePath: \SDLDemo\src\main_window.h
  * @Description:
  *
@@ -11,6 +11,8 @@
 #include "cef/include/cef_base.h"
 #include "demo_cef_client.h"
 #include "SDL3/SDL.h"
+#include "imgui/imgui.h"
+
 #include <mutex>
 
 class MainWindow : public CefBaseRefCounted, public DemoCefClient::Delegate {
@@ -26,12 +28,16 @@ class MainWindow : public CefBaseRefCounted, public DemoCefClient::Delegate {
   virtual void CanClose();
 
  protected:
+  void HandleEvent(); 
+
+ protected:
   CefRefPtr<DemoCefClient> demo_cef_client_ = nullptr;
   int width_ = 400;
   int height_ = 400;
   SDL_Texture* tex_ = nullptr;
   std::mutex mutex_;
   unsigned char* image_buffer_ = nullptr;
+  ImGuiMouseCursor cursor_type_ = ImGuiMouseCursor_::ImGuiMouseCursor_Arrow;
 
  private:
   IMPLEMENT_REFCOUNTING(MainWindow);

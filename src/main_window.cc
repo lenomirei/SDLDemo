@@ -2,7 +2,7 @@
  * @Author: lenomirei lenomirei@163.com
  * @Date: 2025-09-22 11:14:24
  * @LastEditors: lenomirei lenomirei@163.com
- * @LastEditTime: 2025-09-22 16:03:32
+ * @LastEditTime: 2025-09-22 19:19:40
  * @FilePath: \SDLDemo\src\main_window.cc
  * @Description:
  *
@@ -12,7 +12,6 @@
 #include <string>
 #include "imgui/backends/imgui_impl_sdl3.h"
 #include "imgui/backends/imgui_impl_sdlrenderer3.h"
-#include "imgui/imgui.h"
 #include "imgui/imgui_stdlib.h"
 #include "utils.h"
 
@@ -56,8 +55,9 @@ void MainWindow::Draw() {
       std::lock_guard<std::mutex> lock(mutex_);
       SDL_UpdateTexture(tex_, NULL, image_buffer_, width_ * 4);
     }
-
     ImGui::Image((ImTextureID)tex_, ImVec2(width_, height_));
+    ImGui::SetMouseCursor(cursor_type_);
+    HandleEvent();
 
     ImGui::End();
   }
@@ -80,7 +80,23 @@ void MainWindow::GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect) {
 }
 
 bool MainWindow::OnCursorChange(CefRefPtr<CefBrowser> browser, CefCursorHandle cursor, cef_cursor_type_t type, const CefCursorInfo& custom_cursor_info) {
-  return false;
+  cursor_type_ = ImGuiMouseCursor_::ImGuiMouseCursor_Arrow;
+  switch (type) {
+    case CT_POINTER:
+      cursor_type_ = ImGuiMouseCursor_::ImGuiMouseCursor_Arrow;
+      break;
+    case CT_HAND:
+      cursor_type_ = ImGuiMouseCursor_::ImGuiMouseCursor_Hand;
+      break;
+    case CT_IBEAM:
+      cursor_type_ = ImGuiMouseCursor_::ImGuiMouseCursor_TextInput;
+      break;
+    default:
+      cursor_type_ = ImGuiMouseCursor_::ImGuiMouseCursor_Arrow;
+      break;
+  }
+
+  return true;
 }
 
 void MainWindow::GetScreenInfo(CefRefPtr<CefBrowser> browser, CefScreenInfo& screen_info) {
@@ -89,4 +105,36 @@ void MainWindow::GetScreenInfo(CefRefPtr<CefBrowser> browser, CefScreenInfo& scr
 
 void MainWindow::CanClose() {
 
+}
+
+void MainWindow::HandleEvent() {
+  auto io = ImGui::GetIO();
+  ImVec2 browser_pos = ImGui::GetItemRectMin();
+  CefMouseEvent mouse_event;
+  mouse_event.x = io.MousePos.x - browser_pos.x;
+  mouse_event.y = io.MousePos.y - browser_pos.y;
+  if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
+    demo_cef_client_->GetBrowser()->GetHost()->SendMouseMoveEvent(mouse_event, (mouse_event.x < 0 || mouse_event.y < 0) ? true : false);
+  }
+  if (ImGui::IsMouseDown(0)) {
+    if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
+      demo_cef_client_->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_LEFT, false, 1);
+    }
+  }
+  if (ImGui::IsMouseDown(1)) {
+    if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
+      demo_cef_client_->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_RIGHT, false, 1);
+    }
+  }
+
+  if (ImGui::IsMouseReleased(0)) {
+    if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
+      demo_cef_client_->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_LEFT, true, 1);
+    }
+  } 
+  if (ImGui::IsMouseReleased(1)) {
+    if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
+      demo_cef_client_->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_RIGHT, true, 1);
+    }
+  }
 }
