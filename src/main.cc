@@ -63,9 +63,20 @@ int main() {
   auto texture = SDL_CreateTexture(renderer, SDL_PixelFormat::SDL_PIXELFORMAT_BGRA8888, SDL_TEXTUREACCESS_STREAMING, 800, 600);
 
   CefRefPtr<MainWindow> main_window = new MainWindow(); 
+
+  const int frame_time = 1000 / 25; // 25 FPS
+  auto last_time = SDL_GetTicks();
   
   while (running) {
-    // 处理事件
+    auto now = SDL_GetTicks();
+    auto delta = now - last_time;
+    if (delta < frame_time) {
+        SDL_Delay((Uint32)(frame_time - delta)); // delay
+        continue;
+    }
+    last_time = now;
+
+    // Handle SDL event
     while (SDL_PollEvent(&event)) {
       ImGui_ImplSDL3_ProcessEvent(&event);
 

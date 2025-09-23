@@ -28,7 +28,7 @@ class MainWindow : public CefBaseRefCounted, public DemoCefClient::Delegate {
   virtual void CanClose();
 
  protected:
-  void HandleEvent(); 
+  void HandleBrowserEvent(); 
 
  protected:
   CefRefPtr<DemoCefClient> demo_cef_client_ = nullptr;
@@ -38,6 +38,7 @@ class MainWindow : public CefBaseRefCounted, public DemoCefClient::Delegate {
   std::mutex mutex_;
   unsigned char* image_buffer_ = nullptr;
   ImGuiMouseCursor cursor_type_ = ImGuiMouseCursor_::ImGuiMouseCursor_Arrow;
+  std::string address_;
 
  private:
   IMPLEMENT_REFCOUNTING(MainWindow);

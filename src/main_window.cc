@@ -2,21 +2,24 @@
  * @Author: lenomirei lenomirei@163.com
  * @Date: 2025-09-22 11:14:24
  * @LastEditors: lenomirei lenomirei@163.com
- * @LastEditTime: 2025-09-22 19:19:40
+ * @LastEditTime: 2025-09-23 14:23:07
  * @FilePath: \SDLDemo\src\main_window.cc
  * @Description:
  *
  */
 #include "main_window.h"
 
+#include <iostream>
 #include <string>
 #include "imgui/backends/imgui_impl_sdl3.h"
 #include "imgui/backends/imgui_impl_sdlrenderer3.h"
 #include "imgui/imgui_stdlib.h"
 #include "utils.h"
+#include "cef/include/base/cef_callback.h"
+#include "cef/include/wrapper/cef_closure_task.h"
 
 MainWindow::MainWindow() {
-
+  address_ = "https://www.google.com";
 }
 
 void MainWindow::CreateBrowser() {
@@ -25,7 +28,7 @@ void MainWindow::CreateBrowser() {
   CefBrowserSettings browser_settings;
   browser_settings.windowless_frame_rate = 30;
   demo_cef_client_ = new DemoCefClient(this);
-  CefBrowserHost::CreateBrowser(window_info, demo_cef_client_, "https://www.baidu.com", browser_settings, nullptr, nullptr) ;
+  CefBrowserHost::CreateBrowser(window_info, demo_cef_client_, address_, browser_settings, nullptr, nullptr);
 }
 
 void MainWindow::Draw() {
@@ -36,18 +39,24 @@ void MainWindow::Draw() {
 
   // begin a imgui window
   {
-    std::string url_address;
-    ImGui::Begin("Hello my first imgui program");
-    ImVec2 size = ImGui::GetWindowSize();
-    width_ = size.x;
-    height_ = size.y;
+    ImGui::Begin("Hello my first imgui program", nullptr, ImGuiWindowFlags_::ImGuiWindowFlags_NoMove | ImGuiWindowFlags_::ImGuiWindowFlags_NoResize);
 
-    ImGui::InputText("address", &url_address, 0);
+    ImGui::InputText("address", &address_, 0);
+    ImGui::SameLine();
+    if (ImGui::Button("Go!")) {
+      demo_cef_client_->GetBrowser()->GetMainFrame()->LoadURL(address_);
+    }
+
     if (ImGui::Button("Create Browser")) {
       CreateBrowser();
     }
+
+    ImVec2 avail = ImGui::GetContentRegionAvail();
+    width_ = avail.x;
+    height_ = avail.y;
+    ImGui::BeginChild("browser region", avail, false);
     if (tex_ == nullptr) {
-      tex_ = SDL_CreateTexture(GetGlobalRenderer(), SDL_PIXELFORMAT_BGRA8888, SDL_TEXTUREACCESS_STREAMING, width_, height_);
+      tex_ = SDL_CreateTexture(GetGlobalRenderer(), SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width_, height_);
       image_buffer_ = new unsigned char[width_ * height_ * 4];
       memset(image_buffer_, 0, width_ * height_ * 4);
     }
@@ -57,7 +66,11 @@ void MainWindow::Draw() {
     }
     ImGui::Image((ImTextureID)tex_, ImVec2(width_, height_));
     ImGui::SetMouseCursor(cursor_type_);
-    HandleEvent();
+    if (ImGui::IsItemHovered()) {
+      ImGui::GetIO().WantCaptureMouse = false;
+      HandleBrowserEvent();
+    }
+    ImGui::EndChild();
 
     ImGui::End();
   }
@@ -104,37 +117,52 @@ void MainWindow::GetScreenInfo(CefRefPtr<CefBrowser> browser, CefScreenInfo& scr
 }
 
 void MainWindow::CanClose() {
-
 }
 
-void MainWindow::HandleEvent() {
+void MainWindow::HandleBrowserEvent() {
   auto io = ImGui::GetIO();
+  static bool mouse_down = false;
   ImVec2 browser_pos = ImGui::GetItemRectMin();
   CefMouseEvent mouse_event;
   mouse_event.x = io.MousePos.x - browser_pos.x;
   mouse_event.y = io.MousePos.y - browser_pos.y;
-  if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
-    demo_cef_client_->GetBrowser()->GetHost()->SendMouseMoveEvent(mouse_event, (mouse_event.x < 0 || mouse_event.y < 0) ? true : false);
-  }
-  if (ImGui::IsMouseDown(0)) {
-    if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
-      demo_cef_client_->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_LEFT, false, 1);
-    }
-  }
-  if (ImGui::IsMouseDown(1)) {
-    if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
-      demo_cef_client_->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_RIGHT, false, 1);
-    }
-  }
 
+  if (ImGui::IsMouseDown(0)) {
+    if (!mouse_down && demo_cef_client_ && demo_cef_client_->GetBrowser()) {
+      CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, CefMouseEvent mouse_event) {
+        if (client && client->GetBrowser() && client->GetBrowser()->GetHost()) {
+          client->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_LEFT, false, 1);
+        }
+      }, demo_cef_client_, mouse_event));
+    }
+    mouse_down = true;
+    mouse_event.modifiers = EVENTFLAG_LEFT_MOUSE_BUTTON;
+  } 
+  if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
+    CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, CefMouseEvent mouse_event) {
+      if (client && client->GetBrowser() && client->GetBrowser()->GetHost()) {
+        client->GetBrowser()->GetHost()->SendMouseMoveEvent(mouse_event, (mouse_event.x < 0 || mouse_event.y < 0) ? true : false);
+      }
+    }, demo_cef_client_, mouse_event));
+  }
+  // if (ImGui::IsMouseDown(1)) {
+  //   if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
+  //     demo_cef_client_->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_RIGHT, false, 1);
+  //   }
+  // }
   if (ImGui::IsMouseReleased(0)) {
     if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
-      demo_cef_client_->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_LEFT, true, 1);
+      CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, CefMouseEvent mouse_event) {
+        if (client && client->GetBrowser() && client->GetBrowser()->GetHost()) {
+          client->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_LEFT, true, 1);
+        }
+      }, demo_cef_client_, mouse_event));
     }
-  } 
-  if (ImGui::IsMouseReleased(1)) {
-    if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
-      demo_cef_client_->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_RIGHT, true, 1);
-    }
+    mouse_down = false;
   }
+  // if (ImGui::IsMouseReleased(1)) {
+  //   if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
+  //     demo_cef_client_->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_RIGHT, true, 1);
+  //   }
+  // }
 }
