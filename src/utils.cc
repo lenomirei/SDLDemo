@@ -2,7 +2,7 @@
 
 
 SDL_Window* GetGlobalWindow() {
-  static SDL_Window* window = SDL_CreateWindow("SDL3 Event Loop", 800, 600, SDL_WINDOW_VULKAN);
+  static SDL_Window* window = SDL_CreateWindow("SDL3 Event Loop", 800, 600, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 
   SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 
