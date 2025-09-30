@@ -2,7 +2,7 @@
  * @Author: lenomirei lenomirei@163.com
  * @Date: 2025-09-22 11:14:24
  * @LastEditors: lenomirei lenomirei@163.com
- * @LastEditTime: 2025-09-26 12:21:06
+ * @LastEditTime: 2025-09-30 18:36:55
  * @FilePath: \SDLDemo\src\main_window.cc
  * @Description:
  *
@@ -23,12 +23,15 @@ MainWindow::MainWindow() {
 }
 
 void MainWindow::CreateBrowser() {
-  CefWindowInfo window_info;
-  window_info.windowless_rendering_enabled = 1;
-  CefBrowserSettings browser_settings;
-  browser_settings.windowless_frame_rate = 30;
   demo_cef_client_ = new DemoCefClient(this);
-  CefBrowserHost::CreateBrowser(window_info, demo_cef_client_, address_, browser_settings, nullptr, nullptr);
+  CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, std::string address) {
+    CefWindowInfo window_info;
+    window_info.windowless_rendering_enabled = 1;
+    CefBrowserSettings browser_settings;
+    browser_settings.windowless_frame_rate = 30;
+    CefBrowserHost::CreateBrowser(window_info, client, address, browser_settings, nullptr, nullptr);
+  }, demo_cef_client_, address_));
+  
 }
 
 void MainWindow::Draw() {
@@ -44,7 +47,9 @@ void MainWindow::Draw() {
     ImGui::InputText("address", &address_, 0);
     ImGui::SameLine();
     if (ImGui::Button("Go!")) {
-      demo_cef_client_->GetBrowser()->GetMainFrame()->LoadURL(address_);
+      CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, std::string address) {
+        client->GetBrowser()->GetMainFrame()->LoadURL(address);
+      }, demo_cef_client_, address_));
     }
 
     if (ImGui::Button("Create Browser")) {
@@ -60,11 +65,8 @@ void MainWindow::Draw() {
 
       debounce_timer_id_ = SDL_AddTimer(500, [](void* user_data, SDL_TimerID timer_id, uint32_t interval) -> uint32_t {
         // this will be called in timer thread
-        SDL_RunOnMainThread([](void* user_data) {
-          // main thread
-          auto main_window = (MainWindow*)user_data;
-          main_window->OnDebounceTimerCallback();
-        }, user_data, true);
+        auto main_window = (MainWindow*)user_data;
+        main_window->OnDebounceTimerCallback();
         return 0;
       }, this);
     }
@@ -170,7 +172,7 @@ void MainWindow::HandleBrowserEvent() {
   mouse_event.y = io.MousePos.y - browser_pos.y;
 
   if (ImGui::IsMouseDown(0)) {
-    if (!mouse_down && demo_cef_client_ && demo_cef_client_->GetBrowser()) {
+    if (!mouse_down) {
       CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, CefMouseEvent mouse_event) {
                     if (client && client->GetBrowser() && client->GetBrowser()->GetHost()) {
                       client->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_LEFT, false, 1);
@@ -180,26 +182,23 @@ void MainWindow::HandleBrowserEvent() {
     mouse_down = true;
     mouse_event.modifiers = EVENTFLAG_LEFT_MOUSE_BUTTON;
   }
-  if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
-    CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, CefMouseEvent mouse_event) {
-                  if (client && client->GetBrowser() && client->GetBrowser()->GetHost()) {
-                    client->GetBrowser()->GetHost()->SendMouseMoveEvent(mouse_event, (mouse_event.x < 0 || mouse_event.y < 0) ? true : false);
-                  }
-                }, demo_cef_client_, mouse_event));
-  }
+  CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, CefMouseEvent mouse_event) {
+                if (client && client->GetBrowser() && client->GetBrowser()->GetHost()) {
+                  client->GetBrowser()->GetHost()->SendMouseMoveEvent(mouse_event, (mouse_event.x < 0 || mouse_event.y < 0) ? true : false);
+                }
+              },
+              demo_cef_client_, mouse_event));
   // if (ImGui::IsMouseDown(1)) {
   //   if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
   //     demo_cef_client_->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_RIGHT, false, 1);
   //   }
   // }
   if (ImGui::IsMouseReleased(0)) {
-    if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
-      CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, CefMouseEvent mouse_event) {
-                    if (client && client->GetBrowser() && client->GetBrowser()->GetHost()) {
-                      client->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_LEFT, true, 1);
-                    }
-                  }, demo_cef_client_, mouse_event));
-    }
+    CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, CefMouseEvent mouse_event) {
+                  if (client && client->GetBrowser() && client->GetBrowser()->GetHost()) {
+                    client->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_LEFT, true, 1);
+                  }
+                }, demo_cef_client_, mouse_event));
     mouse_down = false;
   }
   // if (ImGui::IsMouseReleased(1)) {
@@ -210,6 +209,8 @@ void MainWindow::HandleBrowserEvent() {
 }
 
 void MainWindow::OnDebounceTimerCallback() {
-  if (demo_cef_client_ != nullptr && demo_cef_client_->GetBrowser() != nullptr && demo_cef_client_->GetBrowser()->GetHost() != nullptr)
-    demo_cef_client_->GetBrowser()->GetHost()->WasResized();
+  CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client) {
+    if (client != nullptr && client->GetBrowser() != nullptr && client->GetBrowser()->GetHost() != nullptr)
+    client->GetBrowser()->GetHost()->WasResized();
+  }, demo_cef_client_));
 }
