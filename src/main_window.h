@@ -2,7 +2,7 @@
  * @Author: lenomirei lenomirei@163.com
  * @Date: 2025-09-22 11:14:12
  * @LastEditors: lenomirei lenomirei@163.com
- * @LastEditTime: 2025-09-26 12:09:27
+ * @LastEditTime: 2025-10-10 15:53:01
  * @FilePath: \SDLDemo\src\main_window.h
  * @Description:
  *
@@ -28,7 +28,7 @@ class MainWindow : public CefBaseRefCounted, public DemoCefClient::Delegate {
   virtual void CanClose();
 
   void OnDebounceTimerCallback();
-  void OnWindowResize();
+  void RecreateTexture();
 
  protected:
   void HandleBrowserEvent(); 
