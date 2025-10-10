@@ -10,7 +10,7 @@
 #include "cef/include/cef_client.h"
 #include "cef/include/cef_render_handler.h"
 
-class DemoCefClient : public CefClient, public CefRenderHandler, public CefLifeSpanHandler, public CefDisplayHandler {
+class DemoCefClient : public CefClient, public CefRenderHandler, public CefLifeSpanHandler, public CefDisplayHandler, public CefLoadHandler {
  public:
   class Delegate {
    public:
@@ -26,22 +26,27 @@ class DemoCefClient : public CefClient, public CefRenderHandler, public CefLifeS
   void CloseBrowser();
 
  protected:
+  // override from CefClient
   CefRefPtr<CefRenderHandler> GetRenderHandler() override;
   CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override;
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override;
+  CefRefPtr<CefLoadHandler> GetLoadHandler() override;
 
   // override from CefRenderHandler
-  void OnPaint(CefRefPtr<CefBrowser> browser, CefRenderHandler::PaintElementType type, const CefRenderHandler::RectList& dirtyRects, const void* buffer, int width, int height) override;
-  void GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect) override;
-  bool GetScreenInfo(CefRefPtr<CefBrowser> browser, CefScreenInfo& screen_info) override;
+  virtual void OnPaint(CefRefPtr<CefBrowser> browser, CefRenderHandler::PaintElementType type, const CefRenderHandler::RectList& dirtyRects, const void* buffer, int width, int height) override;
+  virtual void GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect) override;
+  virtual bool GetScreenInfo(CefRefPtr<CefBrowser> browser, CefScreenInfo& screen_info) override;
 
   // override from CefDisplayHandler
-  bool OnCursorChange(CefRefPtr<CefBrowser> browser, CefCursorHandle cursor, cef_cursor_type_t type, const CefCursorInfo& custom_cursor_info) override;
+  virtual bool OnCursorChange(CefRefPtr<CefBrowser> browser, CefCursorHandle cursor, cef_cursor_type_t type, const CefCursorInfo& custom_cursor_info) override;
 
   // override from CefLifeSpanHandler
-  bool DoClose(CefRefPtr<CefBrowser> browser) override;
-  void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;
-  void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
+  virtual bool DoClose(CefRefPtr<CefBrowser> browser) override;
+  virtual void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;
+  virtual void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
+
+  // override from CefLoadHandler
+  virtual void OnLoadEnd(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, int httpStatusCode) override;
 
  private:
   Delegate* delegate_ = nullptr;

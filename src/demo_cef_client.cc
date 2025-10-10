@@ -2,12 +2,15 @@
  * @Author:
  * @Date: 2025-09-19 18:45:38
  * @LastEditors: lenomirei lenomirei@163.com
- * @LastEditTime: 2025-09-19 19:32:32
+ * @LastEditTime: 2025-10-10 18:45:55
  * @FilePath: \SDLDemo\src\demo_cef_client.cc
  * @Description:
  *
  */
 #include "demo_cef_client.h"
+
+#include "cef/include/base/cef_callback.h"
+#include "cef/include/wrapper/cef_closure_task.h"
 
 DemoCefClient::DemoCefClient(Delegate* delegate)
     : delegate_(delegate) {
@@ -22,6 +25,10 @@ CefRefPtr<CefLifeSpanHandler> DemoCefClient::GetLifeSpanHandler() {
 }
 
 CefRefPtr<CefDisplayHandler> DemoCefClient::GetDisplayHandler() {
+  return this;
+}
+
+CefRefPtr<CefLoadHandler> DemoCefClient::GetLoadHandler() {
   return this;
 }
 
@@ -60,7 +67,10 @@ bool DemoCefClient::OnCursorChange(CefRefPtr<CefBrowser> browser, CefCursorHandl
 }
 
 void DemoCefClient::CloseBrowser() {
-  browser_->GetHost()->CloseBrowser(false);
+  CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<CefBrowser> browser) {
+                browser->GetHost()->CloseBrowser(false);
+              },
+                                                  browser_));
 }
 
 bool DemoCefClient::DoClose(CefRefPtr<CefBrowser> browser) {
@@ -76,5 +86,12 @@ void DemoCefClient::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   if (delegate_) {
     delegate_->CanClose();
     delegate_ = nullptr;
+  }
+}
+
+void DemoCefClient::OnLoadEnd(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, int httpStatusCode) {
+  if (frame->IsMain()) {
+    std::string url = frame->GetURL();
+    std::string name = frame->GetName();
   }
 }

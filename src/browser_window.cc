@@ -2,12 +2,12 @@
  * @Author: lenomirei lenomirei@163.com
  * @Date: 2025-09-22 11:14:24
  * @LastEditors: lenomirei lenomirei@163.com
- * @LastEditTime: 2025-10-10 15:40:06
- * @FilePath: \SDLDemo\src\main_window.cc
+ * @LastEditTime: 2025-10-10 18:48:57
+ * @FilePath: \SDLDemo\src\browser_window.cc
  * @Description:
  *
  */
-#include "main_window.h"
+#include "browser_window.h"
 
 #include <iostream>
 #include <string>
@@ -18,11 +18,13 @@
 #include "imgui/imgui_stdlib.h"
 #include "utils.h"
 
-MainWindow::MainWindow() {
+BrowserWindow::BrowserWindow(const std::string& window_name, bool show)
+    : name_(window_name),
+      show_(show) {
   address_ = "https://www.google.com";
 }
 
-void MainWindow::CreateBrowser() {
+void BrowserWindow::CreateBrowser() {
   demo_cef_client_ = new DemoCefClient(this);
   CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, std::string address) {
     CefWindowInfo window_info;
@@ -34,16 +36,32 @@ void MainWindow::CreateBrowser() {
   
 }
 
-void MainWindow::Draw() {
-  // Start the Dear ImGui frame
-  ImGui_ImplSDLRenderer3_NewFrame();
-  ImGui_ImplSDL3_NewFrame();
-  ImGui::NewFrame();
+void BrowserWindow::Show() {
+  show_ = true;
+}
+
+void BrowserWindow::Close() {
+  if (demo_cef_client_ != nullptr) {
+    demo_cef_client_->CloseBrowser();
+  } else {
+    show_ = false;
+  }
+}
+
+void BrowserWindow::Draw() {
+  if (!show_) {
+    return;
+  }
 
   // begin a imgui window
   {
-    ImGui::Begin("Hello my first imgui program", nullptr, 0);
+    ImGui::Begin(name_.c_str(), nullptr, 0);
 
+    if (ImGui::Button("Close")) {
+      Close();
+    }
+
+    ImGui::SameLine();
     ImGui::InputText("address", &address_, 0);
     ImGui::SameLine();
     if (ImGui::Button("Go!")) {
@@ -65,8 +83,8 @@ void MainWindow::Draw() {
 
       debounce_timer_id_ = SDL_AddTimer(500, [](void* user_data, SDL_TimerID timer_id, uint32_t interval) -> uint32_t {
         // this will be called in timer thread
-        auto main_window = (MainWindow*)user_data;
-        main_window->OnDebounceTimerCallback();
+        auto browser_window = (BrowserWindow*)user_data;
+        browser_window->OnDebounceTimerCallback();
         return 0;
       }, this);
     }
@@ -91,10 +109,9 @@ void MainWindow::Draw() {
     ImGui::End();
   }
 
-  ImGui::Render();
 }
 
-void MainWindow::RecreateTexture() {
+void BrowserWindow::RecreateTexture() {
   // in main thread
   if (tex_ != nullptr) {
     SDL_DestroyTexture(tex_);
@@ -109,14 +126,14 @@ void MainWindow::RecreateTexture() {
   }
 }
 
-void MainWindow::OnPaint(CefRefPtr<CefBrowser> browser, CefRenderHandler::PaintElementType type, const CefRenderHandler::RectList& dirtyRects, const void* buffer, int width, int height) {
+void BrowserWindow::OnPaint(CefRefPtr<CefBrowser> browser, CefRenderHandler::PaintElementType type, const CefRenderHandler::RectList& dirtyRects, const void* buffer, int width, int height) {
   if (browser_width_ != width || browser_height_ != height) {
     browser_width_ = width;
     browser_height_ = height;
 
     SDL_RunOnMainThread([](void* user_data) {
-      auto main_window = (MainWindow*)user_data;
-      main_window->RecreateTexture();
+      auto browser_window = (BrowserWindow*)user_data;
+      browser_window->RecreateTexture();
     }, this, true);
   }
   {
@@ -126,7 +143,7 @@ void MainWindow::OnPaint(CefRefPtr<CefBrowser> browser, CefRenderHandler::PaintE
   }
 }
 
-void MainWindow::GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect) {
+void BrowserWindow::GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect) {
   // in browser thread risk?
   rect.x = 0;
   rect.y = 0;
@@ -134,7 +151,7 @@ void MainWindow::GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect) {
   rect.height = height_;
 }
 
-bool MainWindow::OnCursorChange(CefRefPtr<CefBrowser> browser, CefCursorHandle cursor, cef_cursor_type_t type, const CefCursorInfo& custom_cursor_info) {
+bool BrowserWindow::OnCursorChange(CefRefPtr<CefBrowser> browser, CefCursorHandle cursor, cef_cursor_type_t type, const CefCursorInfo& custom_cursor_info) {
   cursor_type_ = ImGuiMouseCursor_::ImGuiMouseCursor_Arrow;
   switch (type) {
     case CT_POINTER:
@@ -154,14 +171,16 @@ bool MainWindow::OnCursorChange(CefRefPtr<CefBrowser> browser, CefCursorHandle c
   return true;
 }
 
-void MainWindow::GetScreenInfo(CefRefPtr<CefBrowser> browser, CefScreenInfo& screen_info) {
+void BrowserWindow::GetScreenInfo(CefRefPtr<CefBrowser> browser, CefScreenInfo& screen_info) {
   screen_info.device_scale_factor = 1.0;
 }
 
-void MainWindow::CanClose() {
+void BrowserWindow::CanClose() {
+  demo_cef_client_ = nullptr;
+  Close();
 }
 
-void MainWindow::HandleBrowserEvent() {
+void BrowserWindow::HandleBrowserEvent() {
   auto io = ImGui::GetIO();
   static bool mouse_down = false;
   ImVec2 browser_pos = ImGui::GetItemRectMin();
@@ -206,7 +225,7 @@ void MainWindow::HandleBrowserEvent() {
   // }
 }
 
-void MainWindow::OnDebounceTimerCallback() {
+void BrowserWindow::OnDebounceTimerCallback() {
   std::lock_guard<std::mutex> lock(mutex_);
   delete[] image_buffer_;
   image_buffer_ = nullptr;

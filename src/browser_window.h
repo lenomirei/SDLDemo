@@ -15,17 +15,20 @@
 
 #include <mutex>
 
-class MainWindow : public CefBaseRefCounted, public DemoCefClient::Delegate {
+
+class BrowserWindow : public CefBaseRefCounted, public DemoCefClient::Delegate {
  public:
-  MainWindow();
+  BrowserWindow(const std::string& window_name, bool show = true);
   void CreateBrowser();
   void Draw();
+  void Show();
+  void Close();
 
-  virtual void OnPaint(CefRefPtr<CefBrowser> browser, CefRenderHandler::PaintElementType type, const CefRenderHandler::RectList& dirtyRects, const void* buffer, int width, int height);
-  virtual void GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect);
-  virtual bool OnCursorChange(CefRefPtr<CefBrowser> browser, CefCursorHandle cursor, cef_cursor_type_t type, const CefCursorInfo& custom_cursor_info);
-  virtual void GetScreenInfo(CefRefPtr<CefBrowser> browser, CefScreenInfo& screen_info);
-  virtual void CanClose();
+  virtual void OnPaint(CefRefPtr<CefBrowser> browser, CefRenderHandler::PaintElementType type, const CefRenderHandler::RectList& dirtyRects, const void* buffer, int width, int height) override;
+  virtual void GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect) override;
+  virtual bool OnCursorChange(CefRefPtr<CefBrowser> browser, CefCursorHandle cursor, cef_cursor_type_t type, const CefCursorInfo& custom_cursor_info) override;
+  virtual void GetScreenInfo(CefRefPtr<CefBrowser> browser, CefScreenInfo& screen_info) override;
+  virtual void CanClose() override;
 
   void OnDebounceTimerCallback();
   void RecreateTexture();
@@ -46,6 +49,9 @@ class MainWindow : public CefBaseRefCounted, public DemoCefClient::Delegate {
   std::string address_;
   SDL_TimerID debounce_timer_id_ = 0;
 
+  std::string name_;
+  bool show_ = false;
+
  private:
-  IMPLEMENT_REFCOUNTING(MainWindow);
+  IMPLEMENT_REFCOUNTING(BrowserWindow);
 };
