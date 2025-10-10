@@ -2,7 +2,7 @@
  * @Author: lenomirei lenomirei@163.com
  * @Date: 2025-09-22 11:14:24
  * @LastEditors: lenomirei lenomirei@163.com
- * @LastEditTime: 2025-09-30 18:36:55
+ * @LastEditTime: 2025-10-10 15:40:06
  * @FilePath: \SDLDemo\src\main_window.cc
  * @Description:
  *
@@ -78,9 +78,8 @@ void MainWindow::Draw() {
       std::lock_guard<std::mutex> lock(mutex_);
       if (image_buffer_ != nullptr) {
         SDL_UpdateTexture(tex_, NULL, image_buffer_, tex_->w * 4);
+        ImGui::Image((ImTextureID)tex_, ImVec2(tex_->w, tex_->h));
       }
-
-      ImGui::Image((ImTextureID)tex_, ImVec2(tex_->w, tex_->h));
     }
     ImGui::SetMouseCursor(cursor_type_);
     if (ImGui::IsItemHovered()) {
@@ -95,36 +94,35 @@ void MainWindow::Draw() {
   ImGui::Render();
 }
 
-void MainWindow::OnWindowResize() {
+void MainWindow::RecreateTexture() {
   // in main thread
   if (tex_ != nullptr) {
     SDL_DestroyTexture(tex_);
     tex_ = nullptr;
   }
   tex_ = SDL_CreateTexture(GetGlobalRenderer(), SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, browser_width_, browser_height_);
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (image_buffer_ == nullptr) {
+    image_buffer_ = new unsigned char[browser_width_ * browser_height_ * 4];
+    memset(image_buffer_, 0, browser_width_ * browser_height_ * 4);
+  }
 }
 
 void MainWindow::OnPaint(CefRefPtr<CefBrowser> browser, CefRenderHandler::PaintElementType type, const CefRenderHandler::RectList& dirtyRects, const void* buffer, int width, int height) {
   if (browser_width_ != width || browser_height_ != height) {
     browser_width_ = width;
     browser_height_ = height;
+
     SDL_RunOnMainThread([](void* user_data) {
       auto main_window = (MainWindow*)user_data;
-      main_window->OnWindowResize();
+      main_window->RecreateTexture();
     }, this, true);
-
-    std::lock_guard<std::mutex> lock(mutex_);
-    delete[] image_buffer_;
-    image_buffer_ = nullptr;
   }
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (!image_buffer_) {
-      image_buffer_ = new unsigned char[browser_width_ * browser_height_ * 4];
-      memset(image_buffer_, 0, browser_width_ * browser_height_ * 4);
-
-    }
-    memcpy(image_buffer_, buffer, browser_width_ * browser_height_ * 4);
+    if (image_buffer_ != nullptr)
+      memcpy(image_buffer_, buffer, browser_width_ * browser_height_ * 4);
   }
 }
 
@@ -209,8 +207,13 @@ void MainWindow::HandleBrowserEvent() {
 }
 
 void MainWindow::OnDebounceTimerCallback() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  delete[] image_buffer_;
+  image_buffer_ = nullptr;
+
   CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client) {
-    if (client != nullptr && client->GetBrowser() != nullptr && client->GetBrowser()->GetHost() != nullptr)
-    client->GetBrowser()->GetHost()->WasResized();
-  }, demo_cef_client_));
+                if (client != nullptr && client->GetBrowser() != nullptr && client->GetBrowser()->GetHost() != nullptr)
+                  client->GetBrowser()->GetHost()->WasResized();
+              },
+                                                  demo_cef_client_));
 }
