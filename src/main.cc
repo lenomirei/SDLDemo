@@ -5,7 +5,7 @@
 #include "imgui/backends/imgui_impl_sdlrenderer3.h"
 #include "imgui/imgui.h"
 #include "demo_cef_app.h"
-#include "main_window.h"
+#include "windows_manager.h"
 #include "utils.h"
 
 int main() {
@@ -62,7 +62,7 @@ int main() {
 
   auto texture = SDL_CreateTexture(renderer, SDL_PixelFormat::SDL_PIXELFORMAT_BGRA8888, SDL_TEXTUREACCESS_STREAMING, 800, 600);
 
-  CefRefPtr<MainWindow> main_window = new MainWindow(); 
+  std::shared_ptr<WindowsManager> windows_manager = std::make_shared<WindowsManager>();
 
   const int frame_time = 1000 / 25; // 25 FPS
   auto last_time = SDL_GetTicks();
@@ -85,9 +85,20 @@ int main() {
       }
     }
 
+    // Start the Dear ImGui frame
+    ImGui_ImplSDLRenderer3_NewFrame();
+    ImGui_ImplSDL3_NewFrame();
+    ImGui::NewFrame();
 
-    main_window->Draw();
+    ImGui::Begin("manager window");
+    if (ImGui::Button("new window")) {
+      windows_manager->CreateNewWindow("new window");
+    }
 
+    windows_manager->RenderAllWindows();
+    ImGui::End();
+
+    ImGui::Render();
 
     // clear!
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
