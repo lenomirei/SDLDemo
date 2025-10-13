@@ -7,7 +7,7 @@ class WindowsManager {
   WindowsManager() = default;
   ~WindowsManager() = default;
 
-  void CreateNewWindow(const std::string& name, bool show = true);
+  void CreateNewWindow(const std::string& name = "new window", bool show = true);
 
   void RemoveWindow(uint32_t id) {
     windows_map_.erase(id);

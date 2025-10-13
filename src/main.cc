@@ -92,7 +92,7 @@ int main() {
 
     ImGui::Begin("manager window");
     if (ImGui::Button("new window")) {
-      windows_manager->CreateNewWindow("new window");
+      windows_manager->CreateNewWindow();
     }
 
     windows_manager->RenderAllWindows();

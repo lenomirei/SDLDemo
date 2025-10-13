@@ -2,7 +2,7 @@
  * @Author: lenomirei lenomirei@163.com
  * @Date: 2025-09-22 11:14:24
  * @LastEditors: lenomirei lenomirei@163.com
- * @LastEditTime: 2025-10-10 18:48:57
+ * @LastEditTime: 2025-10-13 11:33:04
  * @FilePath: \SDLDemo\src\browser_window.cc
  * @Description:
  *
@@ -205,11 +205,7 @@ void BrowserWindow::HandleBrowserEvent() {
                 }
               },
               demo_cef_client_, mouse_event));
-  // if (ImGui::IsMouseDown(1)) {
-  //   if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
-  //     demo_cef_client_->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_RIGHT, false, 1);
-  //   }
-  // }
+
   if (ImGui::IsMouseReleased(0)) {
     CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, CefMouseEvent mouse_event) {
                   if (client && client->GetBrowser() && client->GetBrowser()->GetHost()) {
@@ -218,21 +214,29 @@ void BrowserWindow::HandleBrowserEvent() {
                 }, demo_cef_client_, mouse_event));
     mouse_down = false;
   }
-  // if (ImGui::IsMouseReleased(1)) {
-  //   if (demo_cef_client_ && demo_cef_client_->GetBrowser()) {
-  //     demo_cef_client_->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_RIGHT, true, 1);
-  //   }
-  // }
+
 }
 
 void BrowserWindow::OnDebounceTimerCallback() {
   std::lock_guard<std::mutex> lock(mutex_);
   delete[] image_buffer_;
   image_buffer_ = nullptr;
+  browser_height_ = 0;
+  browser_width_ = 0;
 
-  CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client) {
-                if (client != nullptr && client->GetBrowser() != nullptr && client->GetBrowser()->GetHost() != nullptr)
-                  client->GetBrowser()->GetHost()->WasResized();
-              },
-                                                  demo_cef_client_));
+  bool hidden = false;
+  if (height_ <= 0 || width_ <= 0) {
+    hidden = true;
+  }
+
+  CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, bool hidden) {
+                if (client != nullptr && client->GetBrowser() != nullptr && client->GetBrowser()->GetHost() != nullptr) {
+                  if (hidden) {
+                    client->GetBrowser()->GetHost()->WasHidden(true);
+                  } else {
+                    client->GetBrowser()->GetHost()->WasHidden(false);
+                    client->GetBrowser()->GetHost()->WasResized();
+                  }
+                }
+              }, demo_cef_client_, hidden));
 }
