@@ -2,7 +2,8 @@
 
 void WindowsManager::CreateNewWindow(const std::string& name, bool show) {
   if (windows_map_.find(next_window_id_) == windows_map_.end()) {
-    CefRefPtr<BrowserWindow> new_window = new BrowserWindow(name, show);
+    
+    CefRefPtr<BrowserWindow> new_window = new BrowserWindow(name + std::to_string(next_window_id_), show);
     windows_map_[next_window_id_] = new_window;
     next_window_id_++;
   }
