@@ -2,7 +2,7 @@
  * @Author: lenomirei lenomirei@163.com
  * @Date: 2025-09-22 11:14:24
  * @LastEditors: lenomirei lenomirei@163.com
- * @LastEditTime: 2025-10-13 16:54:58
+ * @LastEditTime: 2025-10-14 14:57:30
  * @FilePath: \SDLDemo\src\browser_window.cc
  * @Description:
  *
@@ -77,16 +77,21 @@ void BrowserWindow::Draw() {
     ImVec2 avail = ImGui::GetContentRegionAvail();
 
     if (tex_ != nullptr && (avail.x != browser_available_width_ || avail.y != browser_available_height_)) {
-      if (debounce_timer_id_ != 0) {
-        SDL_RemoveTimer(debounce_timer_id_);
-      }
+      bool hidden = avail.x <= 0 || avail.y <= 0;
+      if (browser_hide_ != hidden) {
+        browser_hide_ = hidden;
+        HandleBrowserHidden();
+      } else {
+        if (debounce_timer_id_ != 0) {
+          SDL_RemoveTimer(debounce_timer_id_);
+        }
 
-      debounce_timer_id_ = SDL_AddTimer(500, [](void* user_data, SDL_TimerID timer_id, uint32_t interval) -> uint32_t {
+        debounce_timer_id_ = SDL_AddTimer(500, [](void* user_data, SDL_TimerID timer_id, uint32_t interval) -> uint32_t {
         // this will be called in timer thread
         auto browser_window = (BrowserWindow*)user_data;
         browser_window->OnDebounceTimerCallback();
-        return 0;
-      }, this);
+        return 0; }, this);
+      }
     }
     browser_available_width_ = avail.x;
     browser_available_height_ = avail.y;
@@ -121,6 +126,7 @@ void BrowserWindow::RecreateTexture() {
 
   std::lock_guard<std::mutex> lock(mutex_);
   if (image_buffer_ == nullptr) {
+    std::cout << "create image buffer " << browser_buffer_width_ << " " << browser_buffer_width_ << std::endl;
     image_buffer_ = new unsigned char[browser_buffer_width_ * browser_buffer_height_ * 4];
     memset(image_buffer_, 0, browser_buffer_width_ * browser_buffer_height_ * 4);
   }
@@ -221,25 +227,8 @@ void BrowserWindow::OnDebounceTimerCallback() {
   std::lock_guard<std::mutex> lock(mutex_);
   delete[] image_buffer_;
   image_buffer_ = nullptr;
-  browser_buffer_height_ = 0;
-  browser_buffer_width_ = 0;
 
-  // hide the browser when the available size less equal zero
-  bool hidden = false;
-  if (browser_available_height_ <= 0 || browser_available_width_ <= 0) {
-    hidden = true;
-  }
-  if (hidden != browser_hide_) {
-    browser_hide_ = hidden;
-    CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, bool hidden) {
-                if (client != nullptr && client->GetBrowser() != nullptr && client->GetBrowser()->GetHost() != nullptr) {
-                      client->GetBrowser()->GetHost()->WasHidden(hidden);
-
-                }
-              }, demo_cef_client_, hidden));
-  }
-
-  if (!hidden) {
+  if (!browser_hide_) {
     CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client) {
                   if (client != nullptr && client->GetBrowser() != nullptr && client->GetBrowser()->GetHost() != nullptr) {
                     client->GetBrowser()->GetHost()->WasResized();
@@ -247,4 +236,13 @@ void BrowserWindow::OnDebounceTimerCallback() {
                 },
                                                     demo_cef_client_));
   }
+}
+
+void BrowserWindow::HandleBrowserHidden() {
+  CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, bool hidden) {
+                if (client != nullptr && client->GetBrowser() != nullptr && client->GetBrowser()->GetHost() != nullptr) {
+                      client->GetBrowser()->GetHost()->WasHidden(hidden);
+
+                }
+              }, demo_cef_client_, browser_hide_));
 }

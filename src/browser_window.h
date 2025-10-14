@@ -34,6 +34,7 @@ class BrowserWindow : public CefBaseRefCounted, public DemoCefClient::Delegate {
   void RecreateTexture();
 
  protected:
+  void HandleBrowserHidden();
   void HandleBrowserEvent(); 
 
  protected:
