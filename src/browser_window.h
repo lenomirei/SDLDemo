@@ -34,14 +34,15 @@ class BrowserWindow : public CefBaseRefCounted, public DemoCefClient::Delegate {
   void RecreateTexture();
 
  protected:
+  void HandleBrowserHidden();
   void HandleBrowserEvent(); 
 
  protected:
   CefRefPtr<DemoCefClient> demo_cef_client_ = nullptr;
-  int width_ = 0;
-  int height_ = 0;
-  int browser_width_ = 0;
-  int browser_height_ = 0;
+  int browser_available_width_ = 0;
+  int browser_available_height_ = 0;
+  int browser_buffer_width_ = 0;
+  int browser_buffer_height_ = 0;
   SDL_Texture* tex_ = nullptr;
   std::mutex mutex_;
   unsigned char* image_buffer_ = nullptr;
@@ -51,6 +52,7 @@ class BrowserWindow : public CefBaseRefCounted, public DemoCefClient::Delegate {
 
   std::string name_;
   bool show_ = false;
+  bool browser_hide_ = false;
 
  private:
   IMPLEMENT_REFCOUNTING(BrowserWindow);
