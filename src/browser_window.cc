@@ -2,7 +2,7 @@
  * @Author: lenomirei lenomirei@163.com
  * @Date: 2025-09-22 11:14:24
  * @LastEditors: lenomirei lenomirei@163.com
- * @LastEditTime: 2025-10-17 16:02:58
+ * @LastEditTime: 2025-10-17 16:38:38
  * @FilePath: \SDLDemo\src\browser_window.cc
  * @Description:
  *
@@ -147,8 +147,20 @@ void BrowserWindow::OnPaint(CefRefPtr<CefBrowser> browser, CefRenderHandler::Pai
   }
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (image_buffer_ != nullptr)
-      memcpy(image_buffer_, buffer, browser_buffer_width_ * browser_buffer_height_ * 4);
+    if (image_buffer_ != nullptr) {
+      for (int i = 0 ; i < dirtyRects.size(); ++i) {
+        const uint8_t* src = static_cast<const uint8_t*>(buffer);
+        
+        // 计算源偏移
+        const uint8_t* srcStart = src + (dirtyRects[i].y * width + dirtyRects[i].x) * 4; // RGBA32
+
+        for (int row = 0; row < dirtyRects[i].height; ++row) {
+            uint8_t* dstRow = image_buffer_ + ((dirtyRects[i].y + row) * browser_buffer_width_ + dirtyRects[i].x) * 4;
+            const uint8_t* srcRow = srcStart + row * width * 4;
+            memcpy(dstRow, srcRow, dirtyRects[i].width * 4);
+        }
+      }
+    }
   }
 }
 
