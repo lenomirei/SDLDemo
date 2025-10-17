@@ -2,7 +2,7 @@
  * @Author: lenomirei lenomirei@163.com
  * @Date: 2025-09-22 11:14:24
  * @LastEditors: lenomirei lenomirei@163.com
- * @LastEditTime: 2025-10-14 14:57:30
+ * @LastEditTime: 2025-10-17 16:02:58
  * @FilePath: \SDLDemo\src\browser_window.cc
  * @Description:
  *
@@ -101,7 +101,10 @@ void BrowserWindow::Draw() {
       std::lock_guard<std::mutex> lock(mutex_);
       if (image_buffer_ != nullptr) {
         SDL_UpdateTexture(tex_, NULL, image_buffer_, tex_->w * 4);
-        ImGui::Image((ImTextureID)tex_, ImVec2(tex_->w, tex_->h));
+        ImGui::InvisibleButton("browser_invisible_button", ImVec2(tex_->w, tex_->h));
+        ImVec2 pos = ImGui::GetItemRectMin();
+        ImVec2 max = ImGui::GetItemRectMax();
+        ImGui::GetWindowDrawList()->AddImage((ImTextureID)tex_, pos, max);
       }
     }
     ImGui::SetMouseCursor(cursor_type_);
