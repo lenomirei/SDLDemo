@@ -23,3 +23,13 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src/cef)
 target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src/cef/libs)
 target_link_libraries(${PROJECT_NAME} PRIVATE libcef_dll_wrapper libcef)
+
+add_custom_command(TARGET SDLDemo POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory 
+        "${CMAKE_SOURCE_DIR}/src/cef/bin"
+        "$<TARGET_FILE_DIR:SDLDemo>/"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory 
+        "${CMAKE_SOURCE_DIR}/SDL/bin"
+        "$<TARGET_FILE_DIR:SDLDemo>/"
+    COMMENT "Copying assets files to output directory"
+)
