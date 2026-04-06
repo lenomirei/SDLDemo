@@ -107,6 +107,7 @@ int main() {
     SDL_RenderPresent(renderer);
   }
 
+  windows_manager->CloseAllWindows();
 
   ImGui_ImplSDLRenderer3_Shutdown();
   ImGui_ImplSDL3_Shutdown();
