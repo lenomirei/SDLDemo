@@ -2,16 +2,15 @@
 
 #include <unordered_map>
 
-class WindowsManager {
+class WindowsManager : BrowserWindow::Observer {
  public:
   WindowsManager() = default;
   ~WindowsManager() = default;
 
-  void CreateNewWindow(const std::string& name = "new window", bool show = true);
+  void CreateNewWindow(const std::string& name = "new window",
+                       bool show = true);
 
-  void RemoveWindow(uint32_t id) {
-    windows_map_.erase(id);
-  }
+  void RemoveWindow(uint32_t id);
 
   CefRefPtr<BrowserWindow> GetWindow(uint32_t id) {
     auto it = windows_map_.find(id);
@@ -24,8 +23,11 @@ class WindowsManager {
   void RenderAllWindows();
 
   void CloseAllWindows();
-  
+
+  virtual void OnBrowserWindowClosed(const uint32_t window_id) override;
+
  protected:
   uint32_t next_window_id_ = 1;
   std::unordered_map<uint32_t, CefRefPtr<BrowserWindow>> windows_map_;
+  std::vector<uint32_t> pending_removal_window_ids_;
 };

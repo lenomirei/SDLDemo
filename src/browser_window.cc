@@ -2,7 +2,7 @@
  * @Author: lenomirei lenomirei@163.com
  * @Date: 2025-09-22 11:14:24
  * @LastEditors: lenomirei lenomirei@163.com
- * @LastEditTime: 2025-10-17 16:02:58
+ * @LastEditTime: 2026-04-06 22:20:56
  * @FilePath: \SDLDemo\src\browser_window.cc
  * @Description:
  *
@@ -18,10 +18,16 @@
 #include "imgui/imgui_stdlib.h"
 #include "utils.h"
 
-BrowserWindow::BrowserWindow(const std::string& window_name, bool show)
+BrowserWindow::BrowserWindow(const std::string& window_name, uint32_t window_id, Observer* observer, bool show)
     : name_(window_name),
+      window_id_(window_id),
+      observer_(observer),
       show_(show) {
-  address_ = "https://www.google.com";
+  address_ = "https://www.bing.com";
+}
+
+BrowserWindow::~BrowserWindow() {
+  demo_cef_client_ = nullptr;
 }
 
 void BrowserWindow::CreateBrowser() {
@@ -33,7 +39,6 @@ void BrowserWindow::CreateBrowser() {
     browser_settings.windowless_frame_rate = 30;
     CefBrowserHost::CreateBrowser(window_info, client, address, browser_settings, nullptr, nullptr);
   }, demo_cef_client_, address_));
-  
 }
 
 void BrowserWindow::Show() {
@@ -45,6 +50,9 @@ void BrowserWindow::Close() {
     demo_cef_client_->CloseBrowser();
   } else {
     show_ = false;
+    if (observer_) {
+      observer_->OnBrowserWindowClosed(window_id_);
+    } 
   }
 }
 
