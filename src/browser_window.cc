@@ -2,7 +2,7 @@
  * @Author: lenomirei lenomirei@163.com
  * @Date: 2025-09-22 11:14:24
  * @LastEditors: lenomirei lenomirei@163.com
- * @LastEditTime: 2026-04-06 22:20:56
+ * @LastEditTime: 2026-04-07 16:28:51
  * @FilePath: \SDLDemo\src\browser_window.cc
  * @Description:
  *
@@ -18,27 +18,27 @@
 #include "imgui/imgui_stdlib.h"
 #include "utils.h"
 
-BrowserWindow::BrowserWindow(const std::string& window_name, uint32_t window_id, Observer* observer, bool show)
+BrowserWindow::BrowserWindow(const std::string& window_name, uint32_t window_id, CefRefPtr<CefBrowser> browser, Observer* observer, bool show)
     : name_(window_name),
       window_id_(window_id),
+      browser_(browser),
       observer_(observer),
       show_(show) {
   address_ = "https://www.bing.com";
 }
 
 BrowserWindow::~BrowserWindow() {
-  demo_cef_client_ = nullptr;
+  // demo_cef_client_ = nullptr;
 }
 
-void BrowserWindow::CreateBrowser() {
-  demo_cef_client_ = new DemoCefClient(this);
-  CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, std::string address) {
+void BrowserWindow::CreateBrowser(CefRefPtr<CefClient> client) {
+  CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<CefClient> client, std::string address) {
     CefWindowInfo window_info;
     window_info.windowless_rendering_enabled = 1;
     CefBrowserSettings browser_settings;
     browser_settings.windowless_frame_rate = 30;
     CefBrowserHost::CreateBrowser(window_info, client, address, browser_settings, nullptr, nullptr);
-  }, demo_cef_client_, address_));
+  }, client, "https://www.bing.com"));
 }
 
 void BrowserWindow::Show() {
@@ -46,8 +46,13 @@ void BrowserWindow::Show() {
 }
 
 void BrowserWindow::Close() {
-  if (demo_cef_client_ != nullptr) {
-    demo_cef_client_->CloseBrowser();
+  if (browser_) {
+    CefPostTask(CefThreadId::TID_UI,
+                base::BindOnce(
+                    [](CefRefPtr<CefBrowser> browser) {
+                      browser->GetHost()->CloseBrowser(false);
+                    },
+                    browser_));
   } else {
     show_ = false;
     if (observer_) {
@@ -73,13 +78,9 @@ void BrowserWindow::Draw() {
     ImGui::InputText("address", &address_, 0);
     ImGui::SameLine();
     if (ImGui::Button("Go!")) {
-      CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, std::string address) {
-        client->GetBrowser()->GetMainFrame()->LoadURL(address);
-      }, demo_cef_client_, address_));
-    }
-
-    if (ImGui::Button("Create Browser")) {
-      CreateBrowser();
+      CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<CefBrowser> browser, std::string address) {
+        browser->GetMainFrame()->LoadURL(address);
+      }, browser_, address_));
     }
 
     ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -193,7 +194,7 @@ void BrowserWindow::GetScreenInfo(CefRefPtr<CefBrowser> browser, CefScreenInfo& 
 }
 
 void BrowserWindow::CanClose() {
-  demo_cef_client_ = nullptr;
+  browser_ = nullptr;
   Close();
 }
 
@@ -207,28 +208,28 @@ void BrowserWindow::HandleBrowserEvent() {
 
   if (ImGui::IsMouseDown(0)) {
     if (!mouse_down) {
-      CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, CefMouseEvent mouse_event) {
-                    if (client && client->GetBrowser() && client->GetBrowser()->GetHost()) {
-                      client->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_LEFT, false, 1);
+      CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<CefBrowser> browser, CefMouseEvent mouse_event) {
+                    if (browser && browser->GetHost()) {
+                      browser->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_LEFT, false, 1);
                     }
-                  }, demo_cef_client_, mouse_event));
+                  }, browser_, mouse_event));
     }
     mouse_down = true;
     mouse_event.modifiers = EVENTFLAG_LEFT_MOUSE_BUTTON;
   }
-  CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, CefMouseEvent mouse_event) {
-                if (client && client->GetBrowser() && client->GetBrowser()->GetHost()) {
-                  client->GetBrowser()->GetHost()->SendMouseMoveEvent(mouse_event, (mouse_event.x < 0 || mouse_event.y < 0) ? true : false);
+  CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<CefBrowser> browser, CefMouseEvent mouse_event) {
+                if (browser && browser->GetHost()) {
+                  browser->GetHost()->SendMouseMoveEvent(mouse_event, (mouse_event.x < 0 || mouse_event.y < 0) ? true : false);
                 }
               },
-              demo_cef_client_, mouse_event));
+              browser_, mouse_event));
 
   if (ImGui::IsMouseReleased(0)) {
-    CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, CefMouseEvent mouse_event) {
-                  if (client && client->GetBrowser() && client->GetBrowser()->GetHost()) {
-                    client->GetBrowser()->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_LEFT, true, 1);
+    CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<CefBrowser> browser, CefMouseEvent mouse_event) {
+                  if (browser && browser->GetHost()) {
+                    browser->GetHost()->SendMouseClickEvent(mouse_event, CefBrowserHost::MouseButtonType::MBT_LEFT, true, 1);
                   }
-                }, demo_cef_client_, mouse_event));
+                }, browser_, mouse_event));
     mouse_down = false;
   }
 
@@ -240,20 +241,20 @@ void BrowserWindow::OnDebounceTimerCallback() {
   image_buffer_ = nullptr;
 
   if (!browser_hide_) {
-    CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client) {
-                  if (client != nullptr && client->GetBrowser() != nullptr && client->GetBrowser()->GetHost() != nullptr) {
-                    client->GetBrowser()->GetHost()->WasResized();
+    CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<CefBrowser> browser) {
+                  if (browser && browser->GetHost()) {
+                    browser->GetHost()->WasResized();
                   }
                 },
-                                                    demo_cef_client_));
+                                                    browser_));
   }
 }
 
 void BrowserWindow::HandleBrowserHidden() {
-  CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<DemoCefClient> client, bool hidden) {
-                if (client != nullptr && client->GetBrowser() != nullptr && client->GetBrowser()->GetHost() != nullptr) {
-                      client->GetBrowser()->GetHost()->WasHidden(hidden);
+  CefPostTask(CefThreadId::TID_UI, base::BindOnce([](CefRefPtr<CefBrowser> browser, bool hidden) {
+                if (browser && browser->GetHost()) {
+                      browser->GetHost()->WasHidden(hidden);
 
                 }
-              }, demo_cef_client_, browser_hide_));
+              }, browser_, browser_hide_));
 }
