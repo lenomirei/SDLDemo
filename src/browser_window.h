@@ -2,32 +2,49 @@
  * @Author: lenomirei lenomirei@163.com
  * @Date: 2025-09-22 11:14:12
  * @LastEditors: lenomirei lenomirei@163.com
- * @LastEditTime: 2025-10-10 15:53:01
+ * @LastEditTime: 2026-04-06 22:21:50
  * @FilePath: \SDLDemo\src\main_window.h
  * @Description:
  *
  */
 
+#include "SDL3/SDL.h"
 #include "cef/include/cef_base.h"
 #include "demo_cef_client.h"
-#include "SDL3/SDL.h"
 #include "imgui/imgui.h"
 
 #include <mutex>
 
-
 class BrowserWindow : public CefBaseRefCounted, public DemoCefClient::Delegate {
  public:
-  BrowserWindow(const std::string& window_name, bool show = true);
+  class Observer {
+   public:
+    virtual void OnBrowserWindowClosed(const uint32_t window_id) = 0;
+  };
+  BrowserWindow(const std::string& window_name,
+                uint32_t window_id,
+                Observer* observer = nullptr,
+                bool show = true);
+  ~BrowserWindow();
   void CreateBrowser();
   void Draw();
   void Show();
   void Close();
 
-  virtual void OnPaint(CefRefPtr<CefBrowser> browser, CefRenderHandler::PaintElementType type, const CefRenderHandler::RectList& dirtyRects, const void* buffer, int width, int height) override;
-  virtual void GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect) override;
-  virtual bool OnCursorChange(CefRefPtr<CefBrowser> browser, CefCursorHandle cursor, cef_cursor_type_t type, const CefCursorInfo& custom_cursor_info) override;
-  virtual void GetScreenInfo(CefRefPtr<CefBrowser> browser, CefScreenInfo& screen_info) override;
+  virtual void OnPaint(CefRefPtr<CefBrowser> browser,
+                       CefRenderHandler::PaintElementType type,
+                       const CefRenderHandler::RectList& dirtyRects,
+                       const void* buffer,
+                       int width,
+                       int height) override;
+  virtual void GetViewRect(CefRefPtr<CefBrowser> browser,
+                           CefRect& rect) override;
+  virtual bool OnCursorChange(CefRefPtr<CefBrowser> browser,
+                              CefCursorHandle cursor,
+                              cef_cursor_type_t type,
+                              const CefCursorInfo& custom_cursor_info) override;
+  virtual void GetScreenInfo(CefRefPtr<CefBrowser> browser,
+                             CefScreenInfo& screen_info) override;
   virtual void CanClose() override;
 
   void OnDebounceTimerCallback();
@@ -35,7 +52,7 @@ class BrowserWindow : public CefBaseRefCounted, public DemoCefClient::Delegate {
 
  protected:
   void HandleBrowserHidden();
-  void HandleBrowserEvent(); 
+  void HandleBrowserEvent();
 
  protected:
   CefRefPtr<DemoCefClient> demo_cef_client_ = nullptr;
@@ -51,8 +68,10 @@ class BrowserWindow : public CefBaseRefCounted, public DemoCefClient::Delegate {
   SDL_TimerID debounce_timer_id_ = 0;
 
   std::string name_;
+  uint32_t window_id_;
   bool show_ = false;
   bool browser_hide_ = false;
+  Observer* observer_ = nullptr;
 
  private:
   IMPLEMENT_REFCOUNTING(BrowserWindow);
