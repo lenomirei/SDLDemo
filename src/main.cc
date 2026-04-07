@@ -63,6 +63,7 @@ int main() {
   auto texture = SDL_CreateTexture(renderer, SDL_PixelFormat::SDL_PIXELFORMAT_BGRA8888, SDL_TEXTUREACCESS_STREAMING, 800, 600);
 
   std::shared_ptr<WindowsManager> windows_manager = std::make_shared<WindowsManager>();
+  windows_manager->Initialize();
 
   const int frame_time = 1000 / 25; // 25 FPS
   auto last_time = SDL_GetTicks();
